@@ -2,20 +2,31 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { login, register } from '@/lib/api';
 
 export default function AuthPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLogin, setIsLogin] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implementar lógica de autenticación
-    console.log(isLogin ? 'Login' : 'Signup', { email, password });
-    
-    // Redirigir a main después de login
-    router.push('/main');
+    setError(null);
+    setLoading(true);
+    try {
+      // Backend expects "username". We reuse the email field as username.
+      const user = isLogin ? await login(email, password) : await register(email, password);
+      localStorage.setItem('userId', user.id);
+      localStorage.setItem('username', user.username);
+      router.push('/main');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error de autenticación');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -26,9 +37,14 @@ export default function AuthPage() {
         </h1>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {error && (
+            <div className="rounded-lg bg-red-50 border border-red-200 text-red-700 px-4 py-3 text-sm">
+              {error}
+            </div>
+          )}
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-              Email
+              Usuario
             </label>
             <input
               type="email"
@@ -58,9 +74,10 @@ export default function AuthPage() {
 
           <button
             type="submit"
+            disabled={loading}
             className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 rounded-lg transition duration-200"
           >
-            {isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}
+            {loading ? 'Procesando...' : isLogin ? 'Iniciar Sesión' : 'Crear Cuenta'}
           </button>
         </form>
 
